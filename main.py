@@ -37,8 +37,6 @@ os.environ['OPENAI_API_KEY']=api_key
 st.subheader('Upload your PDF file')
 uploaded_pdf=st.file_uploader('Upload your PDF file',type=['pdf'])
 
-
-
 if uploaded_pdf is not None:
     pdf_sig=(uploaded_pdf.name,uploaded_pdf.size,chunk_size,chunk_overlap)
     if st.session_state.get('pdf_sig')!=pdf_sig:
@@ -81,11 +79,7 @@ for message in st.session_state.messages:
                     st.write(s["snippet"])
 
 
-
-
-
-
-question=st.chat_input('Enter your question')
+question=st.chat_input('Ask your question')
 if question:
     st.session_state.messages.append({'role':'user','content':question})
     with st.chat_message('user'):
