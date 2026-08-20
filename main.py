@@ -17,7 +17,7 @@ st.set_page_config(page_title='PDF RAG Chatbot',
     layout='wide',
     initial_sidebar_state='expanded'
 )
-st.title('My PDF RAG Chatbot for Q/A')
+st.title('PDF RAG Chatbot for Q/A')
 st.caption('Upload a PDF file and ask questions about it')
 
 
