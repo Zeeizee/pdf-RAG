@@ -6,7 +6,7 @@ from rag.ingest import build_vectorstore
 from rag.chain import get_chain,as_sources,generate_overview,stream_answer
 
 
-load_dotenv(find_dotenv())
+load_dotenv(find_dotenv(),override=True)
 
 
 
