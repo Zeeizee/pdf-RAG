@@ -3,7 +3,11 @@ import os
 import streamlit as st
 from dotenv import load_dotenv,find_dotenv 
 from rag.ingest import build_vectorstore
-from rag.chain import get_chain
+from rag.chain import get_chain,as_sources,generate_overview,stream_answer
+
+
+load_dotenv(find_dotenv())
+
 
 
 
@@ -41,13 +45,19 @@ if uploaded_pdf is not None:
         with st.spinner('Building vector store...'):
             st.session_state.vectorstore=build_vectorstore(uploaded_pdf.getvalue(),chunk_size,chunk_overlap)
             st.session_state.pdf_sig=pdf_sig
-            st.write(st.session_state.vectorstore)
-        st.success(f'Vector store for **{uploaded_pdf.name}** built successfully.Ask questions about the pdf')
-        st.session_state.messages=[]
-    else:
-        st.info('Vector store already built')
+    
+        with st.spinner("Writing a short overview..."):
+            try:
+                st.session_state.overview = generate_overview(
+                st.session_state.vectorstore, model_name
+                )
+            except Exception as e:
+                st.session_state.overview = None
+                st.warning("Index ready, but overview could not be generated.")
+                st.write(e)
+        st.success(f"Vector store for **{uploaded_pdf.name}** built successfully.")
+        st.session_state.messages = []
 
-load_dotenv(find_dotenv())
 
     # Check session state
 if not 'vectorstore' in st.session_state:
@@ -56,19 +66,43 @@ if not 'vectorstore' in st.session_state:
 if 'vectorstore' in st.session_state:
     if 'messages' not in st.session_state:
         st.session_state.messages=[]
+    overview = st.session_state.get("overview")
+    if overview:
+        st.subheader("Document overview")
+        st.write(overview["summary"])
+    
 for message in st.session_state.messages:
     with st.chat_message(message['role']):
         st.write(message['content'])
+        if message.get("sources"):
+            with st.expander(f"Sources ({len(message['sources'])})"):
+                for s in message["sources"]:
+                    st.markdown(f"**page {s['page']}**")
+                    st.write(s["snippet"])
+
+
+
+
+
+
 question=st.chat_input('Enter your question')
 if question:
     st.session_state.messages.append({'role':'user','content':question})
     with st.chat_message('user'):
         st.write(question)
     chain,retriever=get_chain(st.session_state.vectorstore,model_name,top_k)
+    docs = retriever.invoke(question)
+    sources = as_sources(docs)
     with st.chat_message('assistant'):
-        with st.spinner('Thinking...'):
-            response=chain.invoke(question)
-            st.write(response)
-    st.session_state.messages.append({'role':'assistant','content':response})
+            response = st.write_stream(stream_answer(docs, question, model_name))
+            # response=chain.invoke(question)            
+            # st.write(response)
+            not_found = "could not find the answer" in response.lower()
+            if sources and not not_found: 
+               with st.expander(f"Sources ({len(sources)})"):
+                    for s in sources:
+                        st.markdown(f"**page {s['page']}**")
+                        st.write(s["snippet"])
+    st.session_state.messages.append({'role':'assistant','content':response,"sources": [] if not_found else sources,})
     
 
